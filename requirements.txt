@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pydantic
+ollama
+motor
+pyjwt
+pymilvus
+dotenv 
+sentence-transformers 
+bcrypt<4.0.0
