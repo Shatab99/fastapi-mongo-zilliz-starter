@@ -18,6 +18,8 @@
 
 ---
 
+curl.exe -sL https://raw.githubusercontent.com/Shatab99/fastapi-mongo-zilliz-starter/refs/heads/main/install.sh | bash -s my-new-project
+
 ## 🌟 Why This Starter Pack?
 
 Every great API starts with a solid foundation. This boilerplate is hand-crafted with **real-world architecture** in mind — not just a "hello world" with a database. It gives you:
