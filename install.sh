@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 1. Print a cool welcome message
-echo "🚀 Installing Shatab's FastAPI + MongoDB Boilerplate..."
+echo "🚀 Installing Shatab's FastAPI + MongoDB + Zilliz Vector DB Boilerplate..."
 
 # 2. Clone the repository (replace with your actual repo link)
 # The "$1" allows the user to pass a custom folder name, defaulting to "fastapi-app" if they don't
