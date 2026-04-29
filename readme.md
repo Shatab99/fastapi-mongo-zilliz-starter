@@ -1,15 +1,18 @@
 <div align="center">
 
 # ⚡ FastAPI Starter Pack
-### `MongoDB` · `Zilliz Vector DB` · `Ollama AI` · `JWT Auth` · `RBAC`
+### `MongoDB` · `Zilliz Vector DB` · `Ollama AI` · `JWT Auth` · `RBAC` · `3-Way Handshake`
 
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-Motor_Async-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
 ![JWT](https://img.shields.io/badge/JWT-Auth-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
+![Handshake](https://img.shields.io/badge/3--Way_Handshake-Bot_Protection-FF4B4B?style=for-the-badge&logo=shieldsdotio&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
 
 > 🚀 **A production-ready, batteries-included FastAPI boilerplate** — so you can skip the boring setup and jump straight into building your next big idea.
+>
+> 🤖 **Now with a built-in 3-Way Client Handshake** — a custom bot-reduction mechanism that ensures only legitimate clients can talk to your API.
 
 </div>
 
@@ -27,8 +30,9 @@ Every great API starts with a solid foundation. This boilerplate is hand-crafted
 - ✅ **Global error handling** — clean, consistent JSON error responses
 - ✅ **Pydantic v2** request validation with human-readable error messages
 - ✅ **Bcrypt + SHA-256** double-layer password hashing
-- ✅ **Versioned API routing** (`/api/v1/...`) — scale gracefully
+- ✅ **Versioned API routing** (`/api/v1/...` & `/api/v2/...`) — scale gracefully
 - ✅ Fully **async lifespan** management (startup & shutdown hooks)
+- ✅  🤖 **3-Way Client Handshake** — short-lived token gate that blocks bots & automated scrapers
 
 ---
 
@@ -63,7 +67,9 @@ fastapi-starter-pack/
 │   ├── collections.py             #   MongoDB collection references
 │   ├── error_handlers.py          #   Global HTTP & validation error handlers
 │   ├── middleware.py              #   ASGI context middleware + RBAC token verifier
-│   └── routers_v1.py              #   Central v1 router registry
+│   ├── check_client.py            #   🤖 3-Way Handshake bot-guard dependency
+│   ├── routers_v1.py              #   Central v1 router registry (guarded by handshake)
+│   └── routers_v2.py              #   Security router — handshake token issuer
 │
 └── 📄 requirements.txt            # All dependencies
 ```
@@ -147,16 +153,24 @@ uvicorn main:app --host 127.0.0.1 --port 7008 --reload
 
 ## 📡 API Endpoints
 
-### 🔓 Public Routes
+### 🌍 Open Routes — No Token Needed
 
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/` | Health check — server info & status |
-| `POST` | `/api/v1/auth/login` | Login with email & password, returns JWT |
-| `POST` | `/api/v1/users/register` | Register a new user account |
-| `GET` | `/api/v1/users/public-posts` | Sample public route (no auth needed) |
+| `POST` | `/api/v2/token` | 🤝 **Request a handshake token** (Step 1 of 3-way handshake) |
 
-### 🔐 Protected Routes (JWT Required)
+### 🔒 Handshake-Guarded Routes — `X-Client-Token` Header Required
+
+> All `/api/v1/` routes require a valid `X-Client-Token` from the handshake step.
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/auth/login` | Handshake only | Login with email & password, returns JWT |
+| `POST` | `/api/v1/users/register` | Handshake only | Register a new user account |
+| `GET` | `/api/v1/users/public-posts` | Handshake only | Sample public route |
+
+### 🔐 Fully Protected Routes — Handshake + JWT Required
 
 | Method | Endpoint | Role | Description |
 |---|---|---|---|
@@ -164,27 +178,116 @@ uvicorn main:app --host 127.0.0.1 --port 7008 --reload
 
 ---
 
+## 🤝 3-Way Client Handshake — Bot Protection
+
+> **The Problem:** Bots, scrapers, and automated scripts can hammer your API endpoints — flooding your database, abusing your auth routes, and burning your server resources — all without ever being a real user.
+>
+> **The Solution:** Before a client can call *any* `/api/v1/` route, it must first **prove it is a live client** by completing a lightweight 3-step handshake. Bots that blindly fire requests skip this step and get blocked instantly with `403 Forbidden`.
+
+### How It Works
+
+```
+  CLIENT                                          SERVER
+    │                                               │
+    │  ── STEP 1 ──────────────────────────────►  │
+    │     POST /api/v2/token                        │
+    │     (no headers needed)                       │  generates a JWT
+    │                                               │  that expires in
+    │  ◄─────────────────────────────────────────  │  exactly 5 seconds
+    │     { "token": "eyJ..." }  ⏱️ 5s TTL         │
+    │                                               │
+    │  ── STEP 2 ──────────────────────────────►  │
+    │     POST /api/v1/auth/login                   │
+    │     X-Client-Token: eyJ...                    │  validates token:
+    │     { email, password }                       │  ✅ exists?
+    │                                               │  ✅ not expired?
+    │                                               │  ✅ passed: true?
+    │  ◄─────────────────────────────────────────  │
+    │     { "token": "<JWT access token>" }        │
+    │                                               │
+    │  ── STEP 3 ──────────────────────────────►  │
+    │     GET /api/v1/users/me                      │
+    │     X-Client-Token: eyJ...  (new one)         │  RBAC check
+    │     Authorization: Bearer <JWT>               │  role verified
+    │  ◄─────────────────────────────────────────  │
+    │     { "user": { ... } }                      │
+```
+
+### Why This Stops Bots
+
+| Scenario | Result |
+|---|---|
+| Bot hits `/api/v1/auth/login` directly | `403` — Missing client handshake token |
+| Bot replays an old handshake token | `403` — Handshake token expired (5s TTL) |
+| Bot sends a forged/invalid token | `403` — Invalid client token |
+| Bot is too slow (>5s between steps) | `403` — Handshake token expired |
+| Legitimate client follows all 3 steps | `200` — Access granted ✅ |
+
+### Key Files
+
+| File | Role |
+|---|---|
+| `contexts/routers_v2.py` | Issues the short-lived handshake token via `POST /api/v2/token` |
+| `helpers/auth_helpers.py` → `create_handshake_token()` | Mints a **strictly 5-second** JWT — expiry cannot be overridden |
+| `contexts/check_client.py` | FastAPI dependency that validates `X-Client-Token` on every `/api/v1/` request |
+| `main.py` | Applies `check_client` as a **global dependency** on the entire `api_v1` router |
+
+### Implementation Peek
+
+```python
+# main.py — the entire v1 API is protected by the handshake guard
+app.include_router(api_v1, prefix="/api/v1", dependencies=[Depends(check_client)])
+app.include_router(security_router, prefix="/api/v2")  # token issuer — open
+```
+
+```python
+# helpers/auth_helpers.py — 5-second token, no exceptions
+def create_handshake_token(data: dict) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(seconds=5)  # strictly enforced
+    data.update({"exp": expire})
+    return jwt.encode(data, SECRET_KEY, algorithm="HS256")
+```
+
+```python
+# contexts/check_client.py — the gate guard
+async def check_client(request: Request):
+    client_token = request.headers.get("X-Client-Token")
+    if not client_token:
+        raise HTTPException(403, "Missing client handshake token. Bot activity suspected.")
+    payload = verify_access_token(client_token)   # raises if expired or invalid
+    if not payload.get("passed"):
+        raise HTTPException(403, "Invalid handshake token structure.")
+    return True
+```
+
+> 💡 **Dev Tip:** During local development, you can bypass the handshake by uncommenting `return True` at the top of `check_client()` in `contexts/check_client.py`.
+
+---
+
 ## 🔐 Authentication Flow
 
 ```
-┌──────────┐        POST /auth/login         ┌──────────────┐
+┌──────────┐   X-Client-Token: eyJ...        ┌──────────────┐
 │  Client  │  ──────────────────────────►   │  FastAPI App │
-│          │   { email, password }           │              │
-│          │  ◄──────────────────────────   │  validates   │
-│          │   { token: "eyJ..." }           │  + issues    │
-│          │                                 │    JWT       │
-│          │   GET /users/me                 │              │
+│          │   POST /api/v1/auth/login        │              │
+│          │   { email, password }           │  check_client│
+│          │  ◄──────────────────────────   │  validates + │
+│          │   { token: "eyJ..." }           │  issues JWT  │
+│          │                                 │              │
+│          │   X-Client-Token: eyJ... (new)  │              │
+│          │   GET /api/v1/users/me           │              │
 │          │   Authorization: Bearer eyJ...  │              │
-│          │  ──────────────────────────►   │  verifies    │
-│          │  ◄──────────────────────────   │  RBAC check  │
+│          │  ──────────────────────────►   │  RBAC check  │
+│          │  ◄──────────────────────────   │              │
 │          │   { user: { ... } }             │              │
 └──────────┘                                 └──────────────┘
 ```
 
-1. **Register** → `POST /api/v1/users/register` with `name`, `email`, `password`
-2. **Login** → `POST /api/v1/auth/login` — receive a signed **JWT token** (30-day expiry)
-3. **Access protected routes** → Pass `Authorization: Bearer <token>` in headers
-4. **RBAC** → Routes enforce roles (e.g., `user`, `admin`) via the `verify_token("role")` dependency
+1. **Handshake** → `POST /api/v2/token` — get a short-lived `X-Client-Token` (5s TTL)
+2. **Register** → `POST /api/v1/users/register` with `X-Client-Token` header + `name`, `email`, `password`
+3. **Login** → `POST /api/v1/auth/login` with `X-Client-Token` header — receive a signed **JWT token** (30-day expiry)
+4. **Access protected routes** → Pass both `X-Client-Token` (fresh) + `Authorization: Bearer <token>` headers
+5. **RBAC** → Routes enforce roles (e.g., `user`, `admin`) via the `verify_token("role")` dependency
 
 ---
 
@@ -301,6 +404,7 @@ python-dotenv        # .env file support
 
 ## 🛣️ Roadmap
 
+- [x] 🤝 3-Way Client Handshake bot protection
 - [ ] 🔄 Refresh token support
 - [ ] 📧 Email verification on registration
 - [ ] 🧪 Pytest test suite with async support
@@ -308,6 +412,7 @@ python-dotenv        # .env file support
 - [ ] 📊 Request logging middleware
 - [ ] 🔑 API key authentication option
 - [ ] 🤖 Ollama chat endpoint example
+- [ ] ⏱️ Handshake rate-limiter (max N tokens per IP per minute)
 
 ---
 
