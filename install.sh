@@ -6,7 +6,7 @@ echo "🚀 Installing Shatab's FastAPI + MongoDB + Zilliz Vector DB Boilerplate.
 # 2. Clone the repository (replace with your actual repo link)
 # The "$1" allows the user to pass a custom folder name, defaulting to "fastapi-app" if they don't
 TARGET_DIR=${1:-fastapi-app}
-git clone https://github.com/your-username/your-repo-name.git $TARGET_DIR
+git clone https://github.com/Shatab99/fastapi-mongo-zilliz-starter.git $TARGET_DIR
 
 # 3. Navigate into the new folder
 cd $TARGET_DIR
