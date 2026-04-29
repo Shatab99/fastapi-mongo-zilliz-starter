@@ -18,7 +18,17 @@
 
 ---
 
+## ⚡ Quick Start — One-Command Setup
+
+Copy and paste this command to bootstrap a new project in seconds:
+
+```bash
 curl.exe -sL https://raw.githubusercontent.com/Shatab99/fastapi-mongo-zilliz-starter/refs/heads/main/install.sh | bash -s my-new-project
+```
+
+> 💡 **Replace `my-new-project`** with your desired project name.
+
+---
 
 ## 🌟 Why This Starter Pack?
 
