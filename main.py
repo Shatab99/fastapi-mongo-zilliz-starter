@@ -4,10 +4,10 @@ from contextlib import asynccontextmanager
 from databases.db import connect_to_mongo, close_mongo_connection
 from contexts.middleware import ContextMiddleware
 from databases.zilliz_db import close_zilliz_connection, connect_to_zilliz
-from contexts.routers_v1 import api_v1
+from contexts.api_gateway_v1 import api_v1
 from contexts.error_handlers import setup_global_error_handlers
 from contexts.check_client import check_client
-from contexts.routers_v2 import security_router
+from contexts.api_gateway_v2 import security_router
 
 
 @asynccontextmanager
